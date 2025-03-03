@@ -27,6 +27,10 @@ public static class AnalysisTools
         }
     }
 
+    public static bool InheritsInterface(this INamedTypeSymbol symbol, string interfaceName, string hintName)
+    {
+        return symbol.AllInterfaces.Any(i => i.Name == interfaceName && i.ContainingNamespace.Name.Contains( hintName));
+    }
     public static IEnumerable<AttributeData> GetAllAttributes(this INamedTypeSymbol symbol)
     {
         if (symbol == null)

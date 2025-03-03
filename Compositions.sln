@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compositions.NET", "Composi
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compositions.NET.Sample", "Compositions.NET.Sample\Compositions.NET.Sample.csproj", "{24A4136A-61D8-466A-8883-1693B0B55C60}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compositions.NET.Tests", "Compositions.NET.Tests\Compositions.NET.Tests.csproj", "{C1042C40-827D-456E-9063-1FF5E64CB5BF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{24A4136A-61D8-466A-8883-1693B0B55C60}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{24A4136A-61D8-466A-8883-1693B0B55C60}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{24A4136A-61D8-466A-8883-1693B0B55C60}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C1042C40-827D-456E-9063-1FF5E64CB5BF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C1042C40-827D-456E-9063-1FF5E64CB5BF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C1042C40-827D-456E-9063-1FF5E64CB5BF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C1042C40-827D-456E-9063-1FF5E64CB5BF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -6,6 +6,43 @@ using Microsoft.CodeAnalysis;
 
 namespace Compositions.Generators;
 
+public class ComponentResetGenerator : IGenerator
+{
+    public const string Template = @"
+namespace {namespace}{
+    public partial class {className} {
+        public void Clear(){
+            {clearers};
+        }
+    }        
+}
+";
+    public void Generate(GeneratorExecutionContext context, List<IData> datas)
+    {
+        foreach (var componentData in datas.OfType<ComponentData>())
+        {
+            bool isClearable = componentData.Symbol.InheritsInterface("IClearable", "Composition");
+            if (isClearable)
+            {
+                SampleSourceGenerator.EnforcePartial(context,componentData.Symbol);
+                
+            }
+            else
+            {
+                continue;
+            }
+
+            string clearers = componentData.Members.Select(i => $"this.{i.Name}=default;").Separated(sep:"\n");
+            var gen = Template
+                .Replace("{className}", componentData.Symbol.Name)
+                .Replace("{clearers}",
+                    clearers)
+                .Replace("{namespace}",
+                    componentData.Symbol.ContainingNamespace.ToString());
+            context.AddSource($"{componentData.Symbol.Name}Clearer.g.cs", gen);
+        }
+    }
+}
 public class ComponentInterfaceGenerator : IGenerator
 {
     private const string TemplateMemberOwner = @"
@@ -55,22 +92,33 @@ public class CompositionComponentAPIGenerator : IGenerator
 namespace {namespace}{
     public partial class {className} : I{componentName}ComponentHaver {
         public void Set{componentName}({args}){
-            if(this.Has{componentName}){
-                {currentSetters};
-                return;
+            var next = Compositions.ComponentPool.Get<{componentClass}>();
+            if(this._{componentNameL} != default){
+               //use property to return to pool if it originated from pool
+               this.{componentName}=default;
             }
-            this.{componentName} = new {componentClass}(){{componentSetters}};
+            this.{componentName} = next;
+            this._{componentNameL}IsInstanceSet = false;    
+            {componentSetters};
         }
         public void Remove{componentName}(){
             this.{componentName} = default;
         }
         private {componentClass} _{componentNameL};
-        public {componentClass} {componentName} {set=>_{componentNameL} = value;  get {
+        public {componentClass} {componentName} {set=>InstanceSet{componentName}(value);  get {
             if(_{componentNameL} != null){
                 return _{componentNameL};
             }
             return Get{componentName}FromParent();
         }
+        }
+        private bool _{componentNameL}IsInstanceSet =false;
+        private void InstanceSet{componentName}({componentClass} {componentNameL}){
+            if(!_{componentNameL}IsInstanceSet && this._{componentNameL} != null){
+               Compositions.ComponentPool.Return(_{componentNameL});
+            }
+            this._{componentNameL}IsInstanceSet=true;
+            this._{componentNameL} = {componentNameL};
         }
         private {componentClass} Get{componentName}FromParent(){
             var current =Parent;
@@ -99,22 +147,33 @@ namespace {namespace}{
 namespace {namespace}{
     public partial class {className} : I{componentName}ComponentHaver {
         public void Set{componentName}({args}){
-            if(this.Has{componentName}){
-                {currentSetters};
-                return;
+            var next = Compositions.ComponentPool.Get<{componentClass}>();
+            if(this._{componentNameL} != default){
+               //use property to return to pool if it originated from pool
+               this.{componentName}=default;
             }
-            this.{componentName} = new {componentClass}(){{componentSetters}};
+            this.{componentName} = next;
+            this._{componentNameL}IsInstanceSet = false;    
+            {componentSetters};
         }
         public void Remove{componentName}(){
             this.{componentName} = default;
         }
         private {componentClass} _{componentNameL};
-        public {componentClass} {componentName} {set=>_{componentNameL} = value;  get {
+        public {componentClass} {componentName} {set=>InstanceSet{componentName}(value);  get {
             if(_{componentNameL} != null){
                 return _{componentNameL};
             }
             return default;
         }
+        }
+        private bool _{componentNameL}IsInstanceSet =false;
+        private void InstanceSet{componentName}({componentClass} {componentNameL}){
+            if(!_{componentNameL}IsInstanceSet && this._{componentNameL} != null){
+               Compositions.ComponentPool.Return(_{componentNameL});
+            }
+            this._{componentNameL}IsInstanceSet=true;
+            this._{componentNameL} = {componentNameL};
         }
         public bool Has{componentName}{get=>this.{componentName}!=null;}
     }
@@ -156,13 +215,14 @@ namespace {namespace}{
                         t = NoInheritTemplateFlag;
                     }
                 }
+
                 var gen = t.Replace("{namespace}", data.Type.ContainingNamespace.ToString())
                     .Replace("{className}", data.Type.Name)
                     .Replace("{componentClass}", componentData.Symbol.ToString())
                     .Replace("{args}",
                         componentData.Members.Select(i => $"{i.Type.ToString()} {i.Name.ToLower()}").Separated())
                     .Replace("{componentSetters}",
-                        componentData.Members.Select(i => $"{i.Name}={i.Name.ToLower()}").Separated())
+                        componentData.Members.Select(i => $"this.{{componentName}}.{i.Name}={i.Name.ToLower()}").Separated(sep:";"))
                     .Replace("{currentSetters}",
                         componentData.Members.Select(i => $"this.{{componentName}}.{i.Name} = {i.Name.ToLower()}")
                             .Separated(";\n"))

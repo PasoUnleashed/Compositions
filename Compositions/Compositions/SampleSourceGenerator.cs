@@ -19,13 +19,13 @@ public class SampleSourceGenerator : ISourceGenerator
 {
     public static readonly DiagnosticDescriptor NotPartialException = new DiagnosticDescriptor("CST001",
         "Class Must Be Partial", "Found error {0}", "Source Generator", DiagnosticSeverity.Error, true);
+
     public void Initialize(GeneratorInitializationContext context)
     {
     }
-    
+
     public void Execute(GeneratorExecutionContext context)
     {
-        
         List<IData> allData = new List<IData>();
         try
         {
@@ -37,23 +37,19 @@ public class SampleSourceGenerator : ISourceGenerator
                 if (type.IsComponent())
                 {
                     //EnforcePartial(context,type);
-                    allData.AddRange(componentProvider.Provide(type,context));
-
+                    allData.AddRange(componentProvider.Provide(type, context));
                 }
             }
+
             foreach (var type in namedTypeSymbols)
             {
-                
                 if (type.IsComposition(allData))
                 {
                     //EnforcePartial(context, type);
                     allData.Add(new CompositionData(type));
                 }
-
-                
             }
 
-            
 
             foreach (var data in allData)
             {
@@ -76,9 +72,9 @@ public class SampleSourceGenerator : ISourceGenerator
                             allData.FirstOrDefault(i => i is CompositionData d && d.Type.Equals(current));
                         if (cmpForType != null)
                         {
-                            
                             cmp.InheritsComposition.Add(cmpForType as CompositionData);
                         }
+
                         current = current.BaseType;
                     }
 
@@ -90,35 +86,34 @@ public class SampleSourceGenerator : ISourceGenerator
                         }
 
                         var syntax = (cmp.Type.DeclaringSyntaxReferences.First().GetSyntax() as ClassDeclarationSyntax);
-                        if (syntax?.InheritsInterface(componentData.GetInterfaceName())??false)
+                        if (syntax?.InheritsInterface(componentData.GetInterfaceName()) ?? false)
                         {
                             cmp.Components.Add(componentData);
                             continue;
                         }
                     }
-                    
                 }
-                
             }
 
-           
-            
+
             foreach (var data in allData)
             {
                 DebugTools.Log(data.ToString());
             }
+
             List<IGenerator> generators = new List<IGenerator>()
             {
                 new CompositionComponentAPIGenerator(),
                 new ComponentInterfaceGenerator(),
+                new ComponentResetGenerator(),
                 new CompositionParentGenerator(),
                 new CompositionDisposalGenerator()
             };
             foreach (var generator in generators)
             {
-                generator.Generate(context,allData);
-
+                generator.Generate(context, allData);
             }
+
             DebugTools.Log("no errors");
         }
         catch (Exception e)
@@ -127,27 +122,40 @@ public class SampleSourceGenerator : ISourceGenerator
             DebugTools.Log(e.ToString());
         }
 
-        context.AddSource("errors.g.cs",$"/*{DebugTools.Flush()}*/");
+        context.AddSource("errors.g.cs", $"/*{DebugTools.Flush()}*/");
     }
 
     public static void EnforcePartial(GeneratorExecutionContext context, INamedTypeSymbol type)
     {
-        if (type.TypeKind != TypeKind.Class)
+        if (IsPartialClass(type))
         {
             return;
         }
         var typeDeclaringSyntaxReferences = type.DeclaringSyntaxReferences;
+        foreach (var declaringSyntaxReference in typeDeclaringSyntaxReferences)
+        {
+            var diag = Diagnostic.Create(NotPartialException,
+                declaringSyntaxReference.GetSyntax().GetLocation(), $"Class {type.Name} must be partial");
+            context.ReportDiagnostic(diag);
+        }
+    }
 
-        if ( !typeDeclaringSyntaxReferences.All(i =>
+    public static bool IsPartialClass(INamedTypeSymbol type)
+    {
+        if (type.TypeKind != TypeKind.Class)
+        {
+            return false;
+        }
+
+        var typeDeclaringSyntaxReferences = type.DeclaringSyntaxReferences;
+
+        if (!typeDeclaringSyntaxReferences.All(i =>
                 (i.GetSyntax() as BaseTypeDeclarationSyntax).Modifiers.Any(j =>
                     j.IsKind(SyntaxKind.PartialKeyword))))
         {
-            foreach (var declaringSyntaxReference in typeDeclaringSyntaxReferences)
-            {
-                var diag = Diagnostic.Create(NotPartialException,
-                    declaringSyntaxReference.GetSyntax().GetLocation(), $"Class {type.Name} must be partial");
-                context.ReportDiagnostic(diag);
-            }
+            return false;
         }
+
+        return true;
     }
 }
